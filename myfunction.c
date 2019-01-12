@@ -90,14 +90,9 @@ void blurImg(pixel *src, pixel *dst) {
                        ((short) p4.blue) + ((short) p5.blue) + ((short) p6.blue) +
                        ((short) p7.blue) + ((short) p8.blue) + ((short) p9.blue);
         }
-        sumRed = (sum.red * 0xE38F >> 16) >>3;
-        sumGreen = (sum.green * 0xE38F >> 16) >>3;
-        sumBlue = (sum.blue * 0xE38F  >> 16) >>3;
-
-        // pixels sum in blur method will always be positive since we the kernel in the
-        //is positive. In addition it is sufficient to assign sum after dividing.
-        // at the word case : 255*9/9=255. thats why min(sum.red,255) = sum.red
-        // and similarly to sum.blue and sum.green
+        sumRed = sum.red * 58255 >> 19;
+        sumGreen = sum.green *58255 >> 19;
+        sumBlue = sum.blue * 58255 >> 19;
         dst[index].red = (unsigned char) sumRed;
         dst[index].blue = (unsigned char) sumBlue;
         dst[index].green = (unsigned char) sumGreen;
@@ -117,10 +112,10 @@ void blurImg(pixel *src, pixel *dst) {
  */
 
 void sharpImg(pixel *src, pixel *dst) {
-    register int i = 0, j = 0;
+    register int i,j;
     // kernel size is always 3, therefore 3/2 is always 1.
     i = m - 2;
-    unsigned int index = 0, index1 = 0;
+    unsigned int index, index1 ;
 
     // since the loop unrooling, and the fact that we calculating the value of sum
     // in one command and not accumulating the value of sum with each inner iterations.
@@ -184,36 +179,6 @@ void sharpImg(pixel *src, pixel *dst) {
     }
 }
 
-/**
- * @param image the picture
- * @param backupOrg  back up the image
- * @param pixelsImg the sharp picture after the sharp
- * @param sizePixel the size of the struct
- */
-void doConvolutionBlur(Image *image, pixel *backupOrg, pixel *pixelsImg, int sizePixel) {
-    memcpy(pixelsImg, image->data, sizePixel);
-    //copyPixels(pixelsImg, backupOrg);
-    memcpy(backupOrg, pixelsImg, sizePixel);
-    blurImg(backupOrg, pixelsImg);
-    memcpy(image->data, pixelsImg, sizePixel);
-
-}
-
-/**
- * @param image the picture
- * @param backupOrg  back up the image
- * @param pixelsImg the sharp picture after the sharp
- * @param sizePixel the size of the struct
- */
-void doConvolutionSharp(Image *image, pixel *backupOrg, pixel *pixelsImg, int sizePixel) {
-    // moving the size of bytes from image->data to pixelsImg (replace the charsToPixels(image, pixelsImg));
-    memcpy(pixelsImg, image->data, sizePixel);
-    memcpy(backupOrg, pixelsImg, sizePixel);
-    //copyPixels(pixelsImg, backupOrg);
-    sharpImg(backupOrg, pixelsImg);
-    // moving the size of bytes from pixelsImg to image->data (replace the PixelsToChars(image, pixelsImg));
-    memcpy(image->data, pixelsImg, sizePixel);
-}
 
 /**
  *
@@ -229,14 +194,22 @@ void myfunction(Image *image, char *srcImgpName, char *blurRsltImgName, char *sh
     pixel *backupOrg = calloc(1, sizePixel);
 
     pixel *pixelsImg = calloc(1, sizePixel);
-    // blur image
-    doConvolutionBlur(image, backupOrg, pixelsImg, sizePixel);
+    memcpy(pixelsImg, image->data, sizePixel);
+    //copyPixels(pixelsImg, backupOrg);
+    memcpy(backupOrg, pixelsImg, sizePixel);
+    blurImg(backupOrg, pixelsImg);
+    memcpy(image->data, pixelsImg, sizePixel);
+
 
     // write result image to file
     writeBMP(image, srcImgpName, blurRsltImgName);
-    // sharpen the resulting image
-    doConvolutionSharp(image, backupOrg, pixelsImg, sizePixel);
-    // write result image to file
+    // moving the size of bytes from image->data to pixelsImg (replace the charsToPixels(image, pixelsImg));
+    memcpy(pixelsImg, image->data, sizePixel);
+    memcpy(backupOrg, pixelsImg, sizePixel);
+    //copyPixels(pixelsImg, backupOrg);
+    sharpImg(backupOrg, pixelsImg);
+    // moving the size of bytes from pixelsImg to image->data (replace the PixelsToChars(image, pixelsImg));
+    memcpy(image->data, pixelsImg, sizePixel);
     writeBMP(image, srcImgpName, sharpRsltImgName);
     // free the memory.
     free(pixelsImg);
